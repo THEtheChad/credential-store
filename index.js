@@ -66,6 +66,8 @@ class TokenStore {
 				throw new Error('token is not stored as valid json');
 			}
 		}
+
+		return contents;
 	}
 
 	store (token) {
