@@ -60,6 +60,14 @@ describe('TokenStore', function(){
 
 			assert.ok( fs.existsSync(HOME + '/.bleep') );
 		});
+
+		it('should create a unique md5 hash when passed signature info', function(){
+
+			let tstore = new Tstore({
+				path: '$HOME/.bleep',
+				signature: [123,456]
+			});
+		});
 	});
 
 	describe('#get', function(){
@@ -129,6 +137,16 @@ describe('TokenStore', function(){
 			let result = fs.readFileSync( CREDENTIALS + '/token.json', 'UTF8' );
 
 			assert.deepEqual(token, JSON.parse(result));
+		});
+
+		it('should throw when called with no token', function(){
+
+			let tstore = new Tstore();
+
+			assert.throw(function(){
+
+				tstore.store();
+			});
 		});
 	});
 });

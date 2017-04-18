@@ -69,6 +69,7 @@ class TokenStore {
 	}
 
 	store (token) {
+		if(!token) throw new Error('token must be provided');
 
 		if( typeof token !== 'string' ){
 
