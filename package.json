@@ -1,5 +1,5 @@
 {
-  "name": "token-store",
+  "name": "credential-store",
   "version": "0.0.1",
   "description": "",
   "main": "index.js",
