@@ -49,7 +49,7 @@ class TokenStore {
 		let contents;
 
 		try {
-			contents = fs.readFileSync( this.path );
+			contents = fs.readFileSync( this.path, 'UTF8' );
 		}
 		catch(e){
 			if(e.code === 'ENOENT'){
