@@ -5,87 +5,87 @@ const crypto = require('crypto');
 const fs = require('fs');
 const HOME = require('os').homedir();
 
-class TokenStore { 
+class TokenStore {
+  constructor(options) {
+    this.opts = Object.assign(
+      {
+        mkdir: true,
+        signature: [],
+        filename: 'token',
+        ext: 'json',
+        path: '$HOME/.credentials'
+      },
+      options
+    );
 
-	constructor (options) {
+    // bash expansion
+    let path = this.opts.path.replace(/^~|^\$HOME/, HOME);
 
-		this.opts = Object.assign({
-			mkdir: true,
-			signature: [],
-			filename: 'token',
-			ext: 'json',
-			path: '$HOME/.credentials'
-		}, options);
+    // check if directory exists
+    let exists = fs.existsSync(path);
 
-		// bash expansion
-		let path = this.opts.path.replace(/^~|^\$HOME/, HOME);
+    if (!exists) {
+      if (this.opts.mkdir) {
+        fs.mkdirSync(path);
+      } else {
+        throw new Error(path + ' does not exist');
+      }
+    }
 
-		// check if directory exists
-		let exists = fs.existsSync(path);
+    let filename = [this.opts.filename];
 
-		if(!exists){
-			if(this.opts.mkdir){
-				fs.mkdirSync( path );
-			}
-			else{
-				throw new Error( path + ' does not exist' );
-			}
-		}
+    if (this.opts.signature.length) {
+      let signature = crypto
+        .createHash('md5')
+        .update(this.opts.signature.join())
+        .digest('hex');
+      filename.push(signature);
+    }
 
-		let filename = [this.opts.filename];
+    filename = `${filename.join('-')}.${this.opts.ext}`;
 
-		if( this.opts.signature.length ){
-			let signature = crypto.createHash('md5').update( this.opts.signature.join() ).digest('hex');
-			filename.push(signature);
-		}
+    this.path = p.resolve(path, filename);
+  }
 
-		filename = `${ filename.join('-') }.${ this.opts.ext }`; 
+  get() {
+    let contents;
 
-		this.path = p.resolve( path, filename );
-	}
+    try {
+      contents = fs.readFileSync(this.path, 'UTF8');
+    } catch (e) {
+      if (e.code === 'ENOENT') {
+        throw new Error('token has not been stored');
+      }
+    }
 
-	get () {
+    if (this.opts.ext == 'json') {
+      try {
+        contents = JSON.parse(contents);
+      } catch (e) {
+        throw new Error('token is not stored as valid json');
+      }
+    }
 
-		let contents;
+    return contents;
+  }
 
-		try {
-			contents = fs.readFileSync( this.path, 'UTF8' );
-		}
-		catch(e){
-			if(e.code === 'ENOENT'){
-				throw new Error('token has not been stored');
-			}
-		}
+  store(token) {
+    if (!token) throw new Error('token must be provided');
 
-		if(this.opts.ext == 'json'){
+    if (typeof token !== 'string') {
+      if (this.opts.ext == 'json') {
+        token = JSON.stringify(token);
+      } else {
+        throw new Error('token must be a string');
+      }
+    }
 
-			try{
-				contents = JSON.parse(contents);
-			}
-			catch(e){
-				throw new Error('token is not stored as valid json');
-			}
-		}
+    fs.writeFileSync(this.path, token);
+  }
 
-		return contents;
-	}
-
-	store (token) {
-		if(!token) throw new Error('token must be provided');
-
-		if( typeof token !== 'string' ){
-
-			if(this.opts.ext == 'json'){
-
-				token = JSON.stringify(token);
-			}
-			else{
-				throw new Error('token must be a string');
-			}
-		}
-
-		fs.writeFileSync( this.path, token );
-	}
+  destroy() {
+    fs.unlinkSync(this.path);
+  }
 }
 
 module.exports = TokenStore;
