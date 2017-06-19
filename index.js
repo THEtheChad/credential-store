@@ -45,9 +45,12 @@ class TokenStore {
     filename = `${filename.join('-')}.${this.opts.ext}`;
 
     this.path = p.resolve(path, filename);
+    this.path_refresh = this.path.replace('token', 'token.refresh');
+
+    this.has_refresh = false;
   }
 
-  get() {
+  get(opts = {}) {
     let contents;
 
     try {
@@ -66,6 +69,12 @@ class TokenStore {
       }
     }
 
+    if (this.has_refresh) {
+      let refresh = fs.readFileSync(this.path, 'UTF8');
+      refresh = JSON.parse(refresh);
+      Object.assign(contents, refresh);
+    }
+
     return contents;
   }
 
@@ -74,6 +83,11 @@ class TokenStore {
 
     if (typeof token !== 'string') {
       if (this.opts.ext == 'json') {
+        if (token.refresh_token) {
+          let refresh = { refresh_token };
+          fs.writeFileSync(this.path_refresh, refresh);
+          this.has_refresh = true;
+        }
         token = JSON.stringify(token);
       } else {
         throw new Error('token must be a string');
