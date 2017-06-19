@@ -8,145 +8,136 @@ const HOME = require('os').homedir();
 const CREDENTIALS = HOME + '/.credentials';
 
 mock({
-  [ HOME ]: {},
-  [ HOME + '/.credentials' ]: {
-  	'invalid.json': 'sjdfjdf',
-  	'valid.json': '{"valid":true}'
+  [HOME]: {},
+  [HOME + '/.credentials']: {
+    'invalid.json': 'sjdfjdf',
+    'valid.json': '{"valid":true}'
   }
 });
 
-describe('TokenStore', function(){
+describe('TokenStore', function() {
+  describe('#constructor', function() {
+    it('should expand tilde', function() {
+      let tstore = new Tstore({
+        path: '~/.credentials'
+      });
 
-	describe('#constructor', function(){
+      let match = new RegExp('^' + HOME);
 
-		it('should expand tilde', function(){
+      assert.ok(match.test(tstore.path));
+    });
 
-			let tstore = new Tstore({
-				path: '~/.credentials',
-			});
+    it('should expand $HOME', function() {
+      let tstore = new Tstore({
+        path: '$HOME/.credentials'
+      });
 
-			let match = new RegExp('^' + HOME);
+      let match = new RegExp('^' + HOME);
 
-			assert.ok( match.test( tstore.path ) );
-		});
+      assert.ok(match.test(tstore.path));
+    });
 
-		it('should expand $HOME', function(){
+    it('should throw an error when passed {mkdir:false} alongside a missing path', function() {
+      assert.throws(function() {
+        let tstore = new Tstore({
+          path: '$HOME/.bleep',
+          mkdir: false
+        });
+      });
+    });
 
-			let tstore = new Tstore({
-				path: '$HOME/.credentials',
-			});
+    it('should create a directory when path is missing', function() {
+      let tstore = new Tstore({
+        path: '$HOME/.bleep'
+      });
 
-			let match = new RegExp('^' + HOME);
+      assert.ok(fs.existsSync(HOME + '/.bleep'));
+    });
 
-			assert.ok( match.test( tstore.path ) );
-		});
+    it('should create a unique md5 hash when passed signature info', function() {
+      let tstore = new Tstore({
+        path: '$HOME/.bleep',
+        signature: [123, 456]
+      });
+    });
+  });
 
-		it('should throw an error when passed {mkdir:false} alongside a missing path', function(){
+  describe('#get', function() {
+    it('should throw an error if a token does not exist', function() {
+      let tstore = new Tstore({
+        filename: 'nonexistent',
+        path: '$HOME/.credentials'
+      });
 
-			assert.throws(function(){
+      assert.throws(function() {
+        tstore.get();
+      });
+    });
 
-				let tstore = new Tstore({
-					path: '$HOME/.bleep',
-					mkdir: false
-				});
-			});
-		});
+    it('should throw an error if set to json and unable to parse token', function() {
+      let tstore = new Tstore({
+        filename: 'invalid',
+        path: '$HOME/.credentials'
+      });
 
-		it('should create a directory when path is missing', function(){
+      assert.throws(function() {
+        tstore.get();
+      });
+    });
 
-			let tstore = new Tstore({
-				path: '$HOME/.bleep'
-			});
+    it('should not throw an error if token is valid json', function() {
+      let tstore = new Tstore({
+        filename: 'valid',
+        path: '$HOME/.credentials'
+      });
 
-			assert.ok( fs.existsSync(HOME + '/.bleep') );
-		});
+      tstore.get();
+    });
+  });
 
-		it('should create a unique md5 hash when passed signature info', function(){
+  describe('#store', function() {
+    it('should store any valid string', function() {
+      let token = 'test';
 
-			let tstore = new Tstore({
-				path: '$HOME/.bleep',
-				signature: [123,456]
-			});
-		});
-	});
+      let tstore = new Tstore();
 
-	describe('#get', function(){
+      tstore.store(token);
 
-		it('should throw an error if a token does not exist', function(){
+      let result = fs.readFileSync(CREDENTIALS + '/token.json', 'UTF8');
 
-			let tstore = new Tstore({
-				filename: 'nonexistent',
-				path: '$HOME/.credentials'
-			});
+      assert.equal(token, result);
+    });
 
-			assert.throws(function(){
+    it('should stringify json by default', function() {
+      let token = { test: true };
 
-				tstore.get();
-			});
-		});
+      let tstore = new Tstore();
 
+      tstore.store(token);
 
-		it('should throw an error if set to json and unable to parse token', function(){
+      let result = fs.readFileSync(CREDENTIALS + '/token.json', 'UTF8');
 
-			let tstore = new Tstore({
-				filename: 'invalid',
-				path: '$HOME/.credentials'
-			});
+      assert.deepEqual(token, JSON.parse(result));
+    });
 
-			assert.throws(function(){
+    it('should throw when called with no token', function() {
+      let tstore = new Tstore();
 
-				tstore.get();
-			});
-		});
+      assert.throws(function() {
+        tstore.store();
+      });
+    });
 
-		it('should not throw an error if token is valid json', function(){
+    it('should store one time refresh tokens', function() {
+      let token = { test: true, refresh_token: '273hdkj7jssd8dj' };
 
-			let tstore = new Tstore({
-				filename: 'valid',
-				path: '$HOME/.credentials'
-			});
+      let tstore = new Tstore();
 
-			tstore.get();
-		});
+      tstore.store(token);
+      assert.deepEqual(token, tstore.get());
 
-	});
-
-	describe('#store', function(){
-
-		it('should store any valid string', function(){
-
-			let token = 'test';
-
-			let tstore = new Tstore();
-
-			tstore.store(token);
-
-			let result = fs.readFileSync( CREDENTIALS + '/token.json', 'UTF8' );
-
-			assert.equal(token, result);
-		});
-
-		it('should stringify json by default', function(){
-
-			let token = {test:true};
-
-			let tstore = new Tstore();
-
-			tstore.store(token);
-
-			let result = fs.readFileSync( CREDENTIALS + '/token.json', 'UTF8' );
-
-			assert.deepEqual(token, JSON.parse(result));
-		});
-
-		it('should throw when called with no token', function(){
-
-			let tstore = new Tstore();
-
-			assert.throw(function(){
-
-				tstore.store();
-			});
-		});
-	});
+      tstore.store({ test: true });
+      assert.deepEqual(token, tstore.get());
+    });
+  });
 });

@@ -45,9 +45,7 @@ class TokenStore {
     filename = `${filename.join('-')}.${this.opts.ext}`;
 
     this.path = p.resolve(path, filename);
-    this.path_refresh = this.path.replace('token', 'token.refresh');
-
-    this.has_refresh = false;
+    this.path_refresh = this.path.replace('.json', '-refresh.json');
   }
 
   get(opts = {}) {
@@ -69,8 +67,8 @@ class TokenStore {
       }
     }
 
-    if (this.has_refresh) {
-      let refresh = fs.readFileSync(this.path, 'UTF8');
+    if (fs.existsSync(this.path_refresh)) {
+      let refresh = fs.readFileSync(this.path_refresh, 'UTF8');
       refresh = JSON.parse(refresh);
       Object.assign(contents, refresh);
     }
@@ -84,9 +82,10 @@ class TokenStore {
     if (typeof token !== 'string') {
       if (this.opts.ext == 'json') {
         if (token.refresh_token) {
-          let refresh = { refresh_token };
-          fs.writeFileSync(this.path_refresh, refresh);
-          this.has_refresh = true;
+          fs.writeFileSync(
+            this.path_refresh,
+            JSON.stringify({ refresh_token: token.refresh_token })
+          );
         }
         token = JSON.stringify(token);
       } else {
